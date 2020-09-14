@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 /**
  * 用于SQL的还原
  *
@@ -18,13 +19,12 @@ import java.util.regex.Pattern;
 public class SqlProUtil {
 
     private final static BasicFormatter BASIC_FORMATTER = new BasicFormatter();
-    private final static Pattern PARAMETER_TYPE_PATTERN = Pattern.compile("\\((.*?)\\)");
-    
+    private final static Pattern PARAMETER_TYPE_PATTERN = Pattern.compile("\\(([^\\(]+)\\)$");
     /**
      * 获取Sql语句类型
      *
      * @param sql 语句
-     * @return
+     * @return string
      */
     public static String getSqlType(String sql) {
         if (StringUtils.isNotBlank(sql)) {
@@ -50,7 +50,7 @@ public class SqlProUtil {
      *
      * @param preparingLine  sql
      * @param parametersLine 参数
-     * @return
+     * @return string[]
      */
     public static String[] restoreSql(Project project, final String preparingLine, final String parametersLine) {
         final String PREPARING = ConfigUtil.getPreparing(project);
@@ -75,43 +75,42 @@ public class SqlProUtil {
     }
 
     private static Object[] getParameters(String[] parametersLineSplit) {
-        char c = '(';
         if (parametersLineSplit.length == 2) {
             final String[] split = parametersLineSplit[1].split(",");
             final List<String> params = new ArrayList<>();
-            for (int i = 0; i < split.length; i++) {
-                String s = split[i].trim();
+            for (String value : split) {
+                String s = value.trim();
                 Matcher matcher = PARAMETER_TYPE_PATTERN.matcher(s);
                 String groupHole = null;
                 String group = null;
-                if(matcher.find()){
+                if (matcher.find()) {
                     group = matcher.group(1);
                     groupHole = matcher.group(0);
                 }
-                if(group != null ){
-                    if(group.contains("String")
-                            || group.contains("Timestamp")
-                            || group.contains("Date")
-                            || group.contains("Time")
-                            || group.contains("Calendar")
-                            || group.contains("Currency")
-                            || group.contains("TimeZone")
-                            || group.contains("Locale")
-                            || group.contains("Class")
-                    ){
-                        params.add("'" + s.replace(groupHole,"") + "'");
-                    }else if( group.contains("Boolean")){
-                        s = s.replace(groupHole,"");
-                        if("true".equalsIgnoreCase(s)){
+                if (group != null) {
+                    if ("String".equals(group)
+                            || "Timestamp".equals(group)
+                            || "Date".equals(group)
+                            || "Time".equals(group)
+                            || "Calendar".equals(group)
+                            || "Currency".equals(group)
+                            || "TimeZone".equals(group)
+                            || "Locale".equals(group)
+                            || "Class".equals(group)
+                    ) {
+                        params.add("'" + s.replace(groupHole, "") + "'");
+                    } else if ("Boolean".equals(group)) {
+                        s = s.replace(groupHole, "");
+                        if ("true".equalsIgnoreCase(s)) {
                             s = "1";
-                        }else if("false".equalsIgnoreCase(s)){
+                        } else if ("false".equalsIgnoreCase(s)) {
                             s = "0";
                         }
                         params.add(s);
-                    }else{
-                        params.add(s.replace(groupHole,""));
+                    } else {
+                        params.add(s.replace(groupHole, ""));
                     }
-                }else {
+                } else {
                     params.add(s);
                 }
             }
