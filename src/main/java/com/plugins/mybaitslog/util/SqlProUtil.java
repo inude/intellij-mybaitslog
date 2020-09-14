@@ -5,6 +5,8 @@ import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 用于SQL的还原
@@ -16,6 +18,8 @@ import java.util.List;
 public class SqlProUtil {
 
     private final static BasicFormatter BASIC_FORMATTER = new BasicFormatter();
+    private final static Pattern PARAMETER_TYPE_PATTERN = Pattern.compile("\\((.*?)\\)");
+    
     /**
      * 获取Sql语句类型
      *
@@ -76,20 +80,38 @@ public class SqlProUtil {
             final String[] split = parametersLineSplit[1].split(",");
             final List<String> params = new ArrayList<>();
             for (int i = 0; i < split.length; i++) {
-                final String s = split[i].trim();
-                if (s.endsWith(")")) {
-                    final char[] value = s.toCharArray();
-                    int find = -1;
-                    for (int j = value.length - 1; j >= 0; j--) {
-                        if (value[j] == c) {
-                            find = j;
-                            break;
+                String s = split[i].trim();
+                Matcher matcher = PARAMETER_TYPE_PATTERN.matcher(s);
+                String groupHole = null;
+                String group = null;
+                if(matcher.find()){
+                    group = matcher.group(1);
+                    groupHole = matcher.group(0);
+                }
+                if(group != null ){
+                    if(group.contains("String")
+                            || group.contains("Timestamp")
+                            || group.contains("Date")
+                            || group.contains("Time")
+                            || group.contains("Calendar")
+                            || group.contains("Currency")
+                            || group.contains("TimeZone")
+                            || group.contains("Locale")
+                            || group.contains("Class")
+                    ){
+                        params.add("'" + s.replace(groupHole,"") + "'");
+                    }else if( group.contains("Boolean")){
+                        s = s.replace(groupHole,"");
+                        if("true".equalsIgnoreCase(s)){
+                            s = "1";
+                        }else if("false".equalsIgnoreCase(s)){
+                            s = "0";
                         }
+                        params.add(s);
+                    }else{
+                        params.add(s.replace(groupHole,""));
                     }
-                    if (find > 0) {
-                        params.add(s.substring(0, find));
-                    }
-                } else {
+                }else {
                     params.add(s);
                 }
             }
